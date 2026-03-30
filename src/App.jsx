@@ -10,7 +10,7 @@ const readImage = (url) =>
     image.src = url
   })
 
-const imageToJpegDataUrl = async (url) => {
+const imageToDataUrl = async (url) => {
   const image = await readImage(url)
   const canvas = document.createElement('canvas')
   canvas.width = image.naturalWidth
@@ -25,7 +25,8 @@ const imageToJpegDataUrl = async (url) => {
   return {
     width: image.naturalWidth,
     height: image.naturalHeight,
-    dataUrl: canvas.toDataURL('image/jpeg', 0.92),
+    format: 'PNG',
+    dataUrl: canvas.toDataURL('image/png'),
   }
 }
 
@@ -162,7 +163,7 @@ function App() {
     let pdf = null
 
     for (let i = 0; i < images.length; i += 1) {
-      const { dataUrl, width, height } = await imageToJpegDataUrl(images[i].url)
+      const { dataUrl, width, height, format } = await imageToDataUrl(images[i].url)
       const pageWidth = pxToPt(width)
       const pageHeight = pxToPt(height)
       const orientation = pageWidth >= pageHeight ? 'l' : 'p'
@@ -177,7 +178,7 @@ function App() {
         pdf.addPage([pageWidth, pageHeight], orientation)
       }
 
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
+      pdf.addImage(dataUrl, format, 0, 0, pageWidth, pageHeight)
     }
 
     return pdf ? pdf.output('blob') : null
