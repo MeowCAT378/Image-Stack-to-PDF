@@ -29,6 +29,8 @@ const imageToJpegDataUrl = async (url) => {
   }
 }
 
+const pxToPt = (px) => (px * 72) / 96
+
 const getNumericBaseName = (fileName) => {
   const baseName = fileName.replace(/\.[^/.]+$/, '').trim()
   if (!/^\d+$/.test(baseName)) {
@@ -157,41 +159,28 @@ function App() {
       return null
     }
 
-    const pdf = new jsPDF({
-      orientation: 'p',
-      unit: 'mm',
-      format: 'a4',
-    })
-
-    const pageWidth = 210
-    const pageHeight = 297
-    const margin = 10
-    const maxWidth = pageWidth - margin * 2
-    const maxHeight = pageHeight - margin * 2
+    let pdf = null
 
     for (let i = 0; i < images.length; i += 1) {
       const { dataUrl, width, height } = await imageToJpegDataUrl(images[i].url)
-      const ratio = width / height
+      const pageWidth = pxToPt(width)
+      const pageHeight = pxToPt(height)
+      const orientation = pageWidth >= pageHeight ? 'l' : 'p'
 
-      let renderWidth = maxWidth
-      let renderHeight = renderWidth / ratio
-
-      if (renderHeight > maxHeight) {
-        renderHeight = maxHeight
-        renderWidth = renderHeight * ratio
+      if (!pdf) {
+        pdf = new jsPDF({
+          orientation,
+          unit: 'pt',
+          format: [pageWidth, pageHeight],
+        })
+      } else {
+        pdf.addPage([pageWidth, pageHeight], orientation)
       }
 
-      const x = (pageWidth - renderWidth) / 2
-      const y = (pageHeight - renderHeight) / 2
-
-      if (i > 0) {
-        pdf.addPage()
-      }
-
-      pdf.addImage(dataUrl, 'JPEG', x, y, renderWidth, renderHeight, undefined, 'FAST')
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
     }
 
-    return pdf.output('blob')
+    return pdf ? pdf.output('blob') : null
   }
 
   const handlePreviewPdf = async () => {
