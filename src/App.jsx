@@ -28,6 +28,14 @@ const imageToJpegDataUrl = async (url) => {
   }
 }
 
+const getNumericBaseName = (fileName) => {
+  const baseName = fileName.replace(/\.[^/.]+$/, '').trim()
+  if (!/^\d+$/.test(baseName)) {
+    return null
+  }
+  return Number(baseName)
+}
+
 const TrashIcon = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M3 6h18" />
@@ -66,7 +74,19 @@ function App() {
       return
     }
 
-    const newItems = files.map((file) => ({
+    const numberedFiles = files.map((file, index) => ({
+      file,
+      index,
+      number: getNumericBaseName(file.name),
+    }))
+
+    const orderedFiles = numberedFiles.every((item) => item.number !== null)
+      ? [...numberedFiles]
+          .sort((a, b) => a.number - b.number || a.index - b.index)
+          .map((item) => item.file)
+      : files
+
+    const newItems = orderedFiles.map((file) => ({
       id: crypto.randomUUID(),
       name: file.name,
       size: file.size,
@@ -182,7 +202,7 @@ function App() {
               รวมรูปหลายไฟล์เป็น PDF เดียว
             </h1>
             <p className="mt-3 max-w-2xl text-emerald-800/80">
-              ลำดับไฟล์จะยึดตามลำดับที่คุณเลือกตอนอัปโหลด จากนั้น Preview PDF ก่อนดาวน์โหลดไฟล์จริง
+              ลำดับไฟล์จะยึดตามที่คุณเลือกตอนอัปโหลด แต่ถ้าชื่อไฟล์ในชุดที่เลือกเป็นตัวเลขล้วนทั้งหมด ระบบจะเรียงจากน้อยไปมากให้อัตโนมัติ
             </p>
           </div>
 
