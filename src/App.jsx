@@ -28,20 +28,6 @@ const imageToJpegDataUrl = async (url) => {
   }
 }
 
-const ArrowUpIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 19V5" />
-    <path d="m5 12 7-7 7 7" />
-  </svg>
-)
-
-const ArrowDownIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 5v14" />
-    <path d="m19 12-7 7-7-7" />
-  </svg>
-)
-
 const TrashIcon = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M3 6h18" />
@@ -55,7 +41,6 @@ const TrashIcon = () => (
 function App() {
   const [images, setImages] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
-  const [draggedId, setDraggedId] = useState(null)
   const [error, setError] = useState('')
   const [previewUrl, setPreviewUrl] = useState('')
 
@@ -91,38 +76,6 @@ function App() {
     setImages((prev) => [...prev, ...newItems])
     setError('')
     event.target.value = ''
-  }
-
-  const moveImage = (fromIndex, toIndex) => {
-    if (
-      fromIndex === toIndex ||
-      fromIndex < 0 ||
-      toIndex < 0 ||
-      fromIndex >= images.length ||
-      toIndex >= images.length
-    ) {
-      return
-    }
-
-    setImages((prev) => {
-      const next = [...prev]
-      const [moved] = next.splice(fromIndex, 1)
-      next.splice(toIndex, 0, moved)
-      return next
-    })
-  }
-
-  const handleDragStart = (id) => setDraggedId(id)
-
-  const handleDrop = (targetId) => {
-    if (!draggedId || draggedId === targetId) {
-      return
-    }
-
-    const fromIndex = images.findIndex((item) => item.id === draggedId)
-    const toIndex = images.findIndex((item) => item.id === targetId)
-    moveImage(fromIndex, toIndex)
-    setDraggedId(null)
   }
 
   const removeImage = (id) => {
@@ -229,7 +182,7 @@ function App() {
               รวมรูปหลายไฟล์เป็น PDF เดียว
             </h1>
             <p className="mt-3 max-w-2xl text-emerald-800/80">
-              อัปโหลดรูป แล้วเรียงลำดับด้วยการลากวางหรือปุ่มลูกศร จากนั้น Preview PDF ก่อนดาวน์โหลดไฟล์จริง
+              ลำดับไฟล์จะยึดตามลำดับที่คุณเลือกตอนอัปโหลด จากนั้น Preview PDF ก่อนดาวน์โหลดไฟล์จริง
             </p>
           </div>
 
@@ -270,10 +223,6 @@ function App() {
             {images.map((item, index) => (
               <li
                 key={item.id}
-                draggable={!isGenerating}
-                onDragStart={() => handleDragStart(item.id)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => handleDrop(item.id)}
                 className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm shadow-emerald-100/40 sm:flex-row sm:items-center"
               >
                 <div className="flex items-center gap-3">
@@ -295,26 +244,6 @@ function App() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => moveImage(index, index - 1)}
-                    className="grid h-9 w-9 place-content-center rounded-lg border border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50"
-                    disabled={index === 0 || isGenerating}
-                    aria-label="เลื่อนขึ้น"
-                    title="เลื่อนขึ้น"
-                  >
-                    <ArrowUpIcon />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveImage(index, index + 1)}
-                    className="grid h-9 w-9 place-content-center rounded-lg border border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50"
-                    disabled={index === images.length - 1 || isGenerating}
-                    aria-label="เลื่อนลง"
-                    title="เลื่อนลง"
-                  >
-                    <ArrowDownIcon />
-                  </button>
                   <button
                     type="button"
                     onClick={() => removeImage(item.id)}
