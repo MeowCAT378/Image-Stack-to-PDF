@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
-import { useEffect, useState } from 'react'
+import { Icon } from '@iconify/react'
+import { useEffect, useRef, useState } from 'react'
 
 const readImage = (url) =>
   new Promise((resolve, reject) => {
@@ -36,30 +37,31 @@ const getNumericBaseName = (fileName) => {
   return Number(baseName)
 }
 
-const TrashIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M3 6h18" />
-    <path d="M8 6V4h8v2" />
-    <path d="M19 6v14H5V6" />
-    <path d="M10 11v6" />
-    <path d="M14 11v6" />
-  </svg>
-)
-
 function App() {
   const [images, setImages] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
   const [previewUrl, setPreviewUrl] = useState('')
+  const [draggedId, setDraggedId] = useState(null)
+  const imagesRef = useRef(images)
+  const previewUrlRef = useRef(previewUrl)
+
+  useEffect(() => {
+    imagesRef.current = images
+  }, [images])
+
+  useEffect(() => {
+    previewUrlRef.current = previewUrl
+  }, [previewUrl])
 
   useEffect(() => {
     return () => {
-      images.forEach((item) => URL.revokeObjectURL(item.url))
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
+      imagesRef.current.forEach((item) => URL.revokeObjectURL(item.url))
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current)
       }
     }
-  }, [images, previewUrl])
+  }, [])
 
   const clearPreview = () => {
     if (previewUrl) {
@@ -107,6 +109,39 @@ function App() {
       return prev.filter((item) => item.id !== id)
     })
     clearPreview()
+  }
+
+  const moveImage = (fromIndex, toIndex) => {
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= images.length ||
+      toIndex >= images.length
+    ) {
+      return
+    }
+
+    setImages((prev) => {
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
+      return next
+    })
+    clearPreview()
+  }
+
+  const handleDragStart = (id) => setDraggedId(id)
+
+  const handleDrop = (targetId) => {
+    if (!draggedId || draggedId === targetId) {
+      return
+    }
+
+    const fromIndex = images.findIndex((item) => item.id === draggedId)
+    const toIndex = images.findIndex((item) => item.id === targetId)
+    moveImage(fromIndex, toIndex)
+    setDraggedId(null)
   }
 
   const clearAll = () => {
@@ -179,15 +214,45 @@ function App() {
   }
 
   const handleDownloadPdf = () => {
-    if (!previewUrl) {
-      setError('กรุณากด Preview PDF ก่อนดาวน์โหลด')
-      return
+    const triggerDownload = (url) => {
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `images-${Date.now()}.pdf`
+      link.click()
     }
 
-    const link = document.createElement('a')
-    link.href = previewUrl
-    link.download = `images-${Date.now()}.pdf`
-    link.click()
+    const downloadPdf = async () => {
+      if (!images.length) {
+        setError('กรุณาอัปโหลดรูปอย่างน้อย 1 รูป')
+        return
+      }
+
+      setError('')
+
+      if (previewUrl) {
+        triggerDownload(previewUrl)
+        return
+      }
+
+      setIsGenerating(true)
+
+      try {
+        const pdfBlob = await createPdfBlob()
+        if (!pdfBlob) {
+          return
+        }
+
+        const tempUrl = URL.createObjectURL(pdfBlob)
+        triggerDownload(tempUrl)
+        setTimeout(() => URL.revokeObjectURL(tempUrl), 1500)
+      } catch {
+        setError('เกิดข้อผิดพลาดระหว่างสร้าง PDF ลองใหม่อีกครั้ง')
+      } finally {
+        setIsGenerating(false)
+      }
+    }
+
+    void downloadPdf()
   }
 
   return (
@@ -201,9 +266,6 @@ function App() {
             <h1 className="font-display mt-2 text-3xl font-bold text-emerald-950 sm:text-4xl">
               รวมรูปหลายไฟล์เป็น PDF เดียว
             </h1>
-            <p className="mt-3 max-w-2xl text-emerald-800/80">
-              ลำดับไฟล์จะยึดตามที่คุณเลือกตอนอัปโหลด แต่ถ้าชื่อไฟล์ในชุดที่เลือกเป็นตัวเลขล้วนทั้งหมด ระบบจะเรียงจากน้อยไปมากให้อัตโนมัติ
-            </p>
           </div>
 
           <div className="flex gap-2">
@@ -243,7 +305,11 @@ function App() {
             {images.map((item, index) => (
               <li
                 key={item.id}
-                className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm shadow-emerald-100/40 sm:flex-row sm:items-center"
+                draggable={!isGenerating}
+                onDragStart={() => handleDragStart(item.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => handleDrop(item.id)}
+                className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm shadow-emerald-100/40 transition sm:flex-row sm:items-center"
               >
                 <div className="flex items-center gap-3">
                   <span className="font-display grid h-9 w-9 place-content-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
@@ -264,6 +330,13 @@ function App() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="grid h-9 w-9 place-content-center rounded-lg border border-emerald-200 text-emerald-700"
+                    title="ลากเพื่อเรียงลำดับ"
+                    aria-label="ลากเพื่อเรียงลำดับ"
+                  >
+                    <Icon icon="mdi:drag-vertical" className="h-5 w-5" />
+                  </span>
                   <button
                     type="button"
                     onClick={() => removeImage(item.id)}
@@ -272,7 +345,7 @@ function App() {
                     aria-label="ลบ"
                     title="ลบ"
                   >
-                    <TrashIcon />
+                    <Icon icon="mdi:trash-can-outline" className="h-5 w-5" />
                   </button>
                 </div>
               </li>
@@ -292,7 +365,7 @@ function App() {
           <button
             type="button"
             onClick={handleDownloadPdf}
-            disabled={!previewUrl || isGenerating}
+            disabled={!images.length || isGenerating}
             className="font-display rounded-xl border border-emerald-300 bg-white px-5 py-3 text-base font-semibold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             ดาวน์โหลด PDF
